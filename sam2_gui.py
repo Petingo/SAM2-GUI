@@ -394,9 +394,8 @@ def create_wizard_interface(checkpoint_dir, model_cfg):
     
     with gr.Blocks(title="SAM2 Video Segmentation Wizard") as interface:
         gr.Markdown("# SAM2 Video Segmentation Wizard")
-        gr.Markdown("### Step-by-step segmentation workflow")
         
-        # Status message
+        # Status message - global status for all tabs
         status_msg = gr.Textbox(label="Status", value="Welcome! Start by selecting a video or image directory.")
         
         with gr.Tabs() as tabs:
@@ -425,22 +424,21 @@ def create_wizard_interface(checkpoint_dir, model_cfg):
                         output_dir = gr.Textbox(label="Output Directory (for extracted frames)")
                         browse_output = gr.Button("Select Output Folder")
                         
-                        with gr.Row(visible=True) as fps_height_row:  # Add visible=True and variable name
+                        with gr.Row(visible=True) as fps_height_row:
                             fps = gr.Slider(1, 30, value=5, step=1, label="Frame Rate (FPS)")
                             height = gr.Slider(240, 2160, value=2160, step=60, label="Output Height")
                             
                         # Process button
                         process_input = gr.Button("Process Input", variant="primary")
                     
-                    # Preview of the first frame or input info
+                    # Preview of the first frame
                     with gr.Column():
-                        input_info = gr.Textbox(label="Input Information")
                         preview_img = gr.Image(label="Preview")
             
             # Step 2: Segment & Track (renamed from "Segment & Export")
             with gr.Tab("2. Segment & Track"):
-                gr.Markdown("### Select points and track objects through video")
-                
+                gr.Markdown("### Initialize SAM and then select points for tracking.")
+                init_sam_btn = gr.Button("Initialize SAM")
                 with gr.Row():
                     # Left Column: Controls
                     with gr.Column(scale=1):
@@ -454,12 +452,11 @@ def create_wizard_interface(checkpoint_dir, model_cfg):
                         gr.Markdown("### Points")
                         # Point type selection
                         with gr.Row():
-                            pos_btn = gr.Button("Positive Point", variant="success")
-                            neg_btn = gr.Button("Negative Point", variant="stop")
+                            pos_btn = gr.Button("Positive Point")
+                            neg_btn = gr.Button("Negative Point")
                             
                         # Controls
                         with gr.Row():
-                            init_sam_btn = gr.Button("Initialize SAM")
                             clear_btn = gr.Button("Clear Points")
                             new_mask_btn = gr.Button("New Mask")
                             
@@ -494,7 +491,6 @@ def create_wizard_interface(checkpoint_dir, model_cfg):
                     
                     with gr.Column():
                         export_preview = gr.Image(label="Mask Preview")
-                        export_result = gr.Textbox(label="Export Status")
         
         # Event handlers
         # Step 1: Input Processing
@@ -567,7 +563,7 @@ def create_wizard_interface(checkpoint_dir, model_cfg):
         process_input.click(
             process_input_fn,
             inputs=[input_type, video_input, dir_input, output_dir, fps, height],
-            outputs=[input_info, preview_img, frame_slider, output_dir]
+            outputs=[status_msg, preview_img, frame_slider, output_dir]
         )
         
         # Step 2: Point Selection
@@ -654,24 +650,20 @@ def create_wizard_interface(checkpoint_dir, model_cfg):
         def show_mask_preview():
             """Show a preview of a mask if available"""
             if wizard.color_masks_all and len(wizard.color_masks_all) > 0:
-                return wizard.color_masks_all[0]
-            return None
+                return wizard.color_masks_all[0], "Mask preview loaded. Ready to export."
+            return None, "No masks available. Run tracking first before exporting."
         
-        def export_masks(output_dir):
-            result = wizard.save_masks(output_dir)
-            return result
-            
-        # When switching to export tab, show preview if available
+        # When switching to export tab, show preview if available and update status
         tabs.change(
             show_mask_preview,
             inputs=None,
-            outputs=[export_preview]
+            outputs=[export_preview, status_msg]
         )
         
         export_btn.click(
-            export_masks,
+            wizard.save_masks,
             inputs=[export_dir],
-            outputs=[export_result]
+            outputs=[status_msg]
         )
         
     return interface
