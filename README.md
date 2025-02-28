@@ -26,9 +26,9 @@ pip install -r requirements.txt
 ```
 
 ## Usage
-1. Run `sam2_gui.py`. You can assign the model and checkpoint to use.
+1. Run `sam2_app.py`. You can assign the model and checkpoint to use.
 ```
-python sam2_gui.py \
+python sam2_app.py \
     --checkpoint_dir ../sam2/checkpoints/sam2.1_hiera_large.pt \
     --model_cfg ../sam2/configs/sam2.1/sam2.1_hiera_l.yaml \
     --port 8890
