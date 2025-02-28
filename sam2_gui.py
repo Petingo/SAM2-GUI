@@ -415,18 +415,20 @@ def create_wizard_interface(checkpoint_dir, model_cfg):
                         # Video input
                         video_input = gr.Video(label="Select Video")
                         
-                        with gr.Row():
-                            fps = gr.Slider(1, 30, value=5, step=1, label="Frame Rate (FPS)")
-                            height = gr.Slider(240, 2160, value=1080, step=60, label="Output Height")
-                        
                         # Directory input
                         dir_input = gr.Textbox(label="Image Directory Path")
+                        dir_input.visible = False
                         browse_dir = gr.Button("Browse Directory")
+                        browse_dir.visible = False
                         
                         # Output directory
                         output_dir = gr.Textbox(label="Output Directory (for extracted frames)")
-                        browse_output = gr.Button("Browse Output")
+                        browse_output = gr.Button("Select Output Folder")
                         
+                        with gr.Row(visible=True) as fps_height_row:  # Add visible=True and variable name
+                            fps = gr.Slider(1, 30, value=5, step=1, label="Frame Rate (FPS)")
+                            height = gr.Slider(240, 2160, value=2160, step=60, label="Output Height")
+                            
                         # Process button
                         process_input = gr.Button("Process Input", variant="primary")
                     
@@ -481,14 +483,14 @@ def create_wizard_interface(checkpoint_dir, model_cfg):
         # Step 1: Input Processing
         def update_browse_visibility(input_choice):
             if input_choice == "Video File":
-                return gr.update(visible=True), gr.update(visible=False)
+                return gr.update(visible=True), gr.update(visible=False), gr.update(visible=False), gr.update(visible=True), gr.update(visible=True), gr.update(visible=True)
             else:
-                return gr.update(visible=False), gr.update(visible=True)
+                return gr.update(visible=False), gr.update(visible=True), gr.update(visible=True), gr.update(visible=False), gr.update(visible=False), gr.update(visible=False)
         
         input_type.change(
             update_browse_visibility,
             inputs=[input_type],
-            outputs=[video_input, dir_input]
+            outputs=[video_input, dir_input, browse_dir, output_dir, browse_output, fps_height_row]
         )
         
         def browse_directory():
