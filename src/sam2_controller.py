@@ -37,6 +37,12 @@ class SAM2Controller:
         self.img_paths = []
         self.init_sam_model()
 
+        # Enable hardware acceleration if available
+        if torch.cuda.is_available():
+            torch.backends.cuda.matmul.allow_tf32 = True
+            torch.backends.cudnn.allow_tf32 = True
+        
+
     # ... existing methods remain the same, only the class name changes ...
     # Just changing the class name, all methods stay the same
     def init_sam_model(self):
