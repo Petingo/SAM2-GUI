@@ -437,9 +437,9 @@ def create_wizard_interface(checkpoint_dir, model_cfg):
                         input_info = gr.Textbox(label="Input Information")
                         preview_img = gr.Image(label="Preview")
             
-            # Step 2: Combined Point Selection, Tracking & Export
-            with gr.Tab("2. Segment & Export"):
-                gr.Markdown("### Select points, track objects, and export results")
+            # Step 2: Segment & Track (renamed from "Segment & Export")
+            with gr.Tab("2. Segment & Track"):
+                gr.Markdown("### Select points and track objects through video")
                 
                 with gr.Row():
                     # Left Column: Controls
@@ -465,11 +465,6 @@ def create_wizard_interface(checkpoint_dir, model_cfg):
                             
                         gr.Markdown("### Tracking")
                         track_btn = gr.Button("Run Tracking", variant="primary")
-                        
-                        gr.Markdown("### Export")
-                        export_dir = gr.Textbox(label="Export Directory")
-                        browse_export = gr.Button("Browse Export Location")
-                        export_btn = gr.Button("Export Masks")
                     
                     # Middle Column: Image for point selection
                     with gr.Column(scale=2):
@@ -478,6 +473,28 @@ def create_wizard_interface(checkpoint_dir, model_cfg):
                     # Right Column: Results preview
                     with gr.Column(scale=2):
                         result_video = gr.Video(label="Tracking Preview")
+            
+            # Step 3: Export Results (new tab)
+            with gr.Tab("3. Export Results"):
+                gr.Markdown("### Export segmentation masks")
+                
+                with gr.Row():
+                    with gr.Column():
+                        gr.Markdown("Select a directory to save mask files:")
+                        export_dir = gr.Textbox(label="Export Directory")
+                        browse_export = gr.Button("Browse Export Location")
+                        export_btn = gr.Button("Export Masks", variant="primary")
+                        
+                        gr.Markdown("""
+                        ### Export formats:
+                        - **Color mask**: PNG files with colored visualization of masks
+                        - **Index mask**: PNG files with integer labels for each object
+                        - **Raw mask data**: NPY files containing numpy arrays
+                        """)
+                    
+                    with gr.Column():
+                        export_preview = gr.Image(label="Mask Preview")
+                        export_result = gr.Textbox(label="Export Status")
         
         # Event handlers
         # Step 1: Input Processing
@@ -634,10 +651,27 @@ def create_wizard_interface(checkpoint_dir, model_cfg):
             outputs=[export_dir]
         )
         
+        def show_mask_preview():
+            """Show a preview of a mask if available"""
+            if wizard.color_masks_all and len(wizard.color_masks_all) > 0:
+                return wizard.color_masks_all[0]
+            return None
+        
+        def export_masks(output_dir):
+            result = wizard.save_masks(output_dir)
+            return result
+            
+        # When switching to export tab, show preview if available
+        tabs.change(
+            show_mask_preview,
+            inputs=None,
+            outputs=[export_preview]
+        )
+        
         export_btn.click(
-            wizard.save_masks,
+            export_masks,
             inputs=[export_dir],
-            outputs=[status_msg]
+            outputs=[export_result]
         )
         
     return interface
