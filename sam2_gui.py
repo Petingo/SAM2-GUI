@@ -392,6 +392,9 @@ def create_wizard_interface(checkpoint_dir, model_cfg):
     """Create the Gradio interface for SAM2 Wizard"""
     wizard = SAM2Wizard(checkpoint_dir, model_cfg)
     
+    # State to track if SAM is initialized
+    sam_initialized = gr.State(False)
+    
     with gr.Blocks(title="SAM2 Video Segmentation Wizard") as interface:
         gr.Markdown("# SAM2 Video Segmentation Wizard")
         
@@ -435,41 +438,63 @@ def create_wizard_interface(checkpoint_dir, model_cfg):
                     with gr.Column():
                         preview_img = gr.Image(label="Preview")
             
-            # Step 2: Segment & Track (renamed from "Segment & Export")
+            # Step 2: Segment & Track
             with gr.Tab("2. Segment & Track"):
-                gr.Markdown("### Initialize SAM and then select points for tracking.")
-                init_sam_btn = gr.Button("Initialize SAM")
+                gr.Markdown("### Select key points for tracking.")
+                
+                # Simple layout with initialize button first
                 with gr.Row():
-                    # Left Column: Controls
-                    with gr.Column(scale=1):
-                        # Frame navigation
-                        frame_slider = gr.Slider(0, 100, value=0, step=1, label="Frame Index")
-                        
-                        with gr.Row():
-                            prev_btn = gr.Button("Previous Frame")
-                            next_btn = gr.Button("Next Frame")
-                        
-                        gr.Markdown("### Points")
-                        # Point type selection
-                        with gr.Row():
-                            pos_btn = gr.Button("Positive Point")
-                            neg_btn = gr.Button("Negative Point")
+                    init_sam_btn = gr.Button("Initialize SAM", variant="primary")
+                
+                # We'll use this container to show/hide the initialization overlay
+                with gr.Column(visible=True) as overlay_container:
+                    # Overlay message when SAM is not initialized
+                    sam_not_initialized_msg = gr.HTML(
+                        """<div style="text-align: center; padding: 40px; margin: 20px; 
+                              border: 2px dashed #ccc; border-radius: 10px; background-color: #f9f9f9;">
+                        <h2 style="color: #666;">⚠️</h2>
+                        <p style="font-size: 18px; margin-top: 20px;">
+                           Click the "Initialize SAM" button above to start.
+                        </p>
+                        <p style="font-size: 14px; color: #888; margin-top: 20px;">
+                           This will prepare the model for segmentation and tracking.
+                        </p>
+                        </div>"""
+                    )
+                
+                # Main segmentation interface (will be enabled after initialization)
+                with gr.Column(visible=False) as segmentation_container:
+                    with gr.Row():
+                        # Left Column: Controls
+                        with gr.Column(scale=1):
+                            # Frame navigation
+                            frame_slider = gr.Slider(0, 100, value=0, step=1, label="Frame Index")
                             
-                        # Controls
-                        with gr.Row():
-                            clear_btn = gr.Button("Clear Points")
-                            new_mask_btn = gr.Button("New Mask")
+                            with gr.Row():
+                                prev_btn = gr.Button("Previous Frame")
+                                next_btn = gr.Button("Next Frame")
                             
-                        gr.Markdown("### Tracking")
-                        track_btn = gr.Button("Run Tracking", variant="primary")
-                    
-                    # Middle Column: Image for point selection
-                    with gr.Column(scale=2):
-                        point_image = gr.Image(label="Select Points")
-                    
-                    # Right Column: Results preview
-                    with gr.Column(scale=2):
-                        result_video = gr.Video(label="Tracking Preview")
+                            gr.Markdown("### Points")
+                            # Point type selection
+                            with gr.Row():
+                                pos_btn = gr.Button("Positive Point")
+                                neg_btn = gr.Button("Negative Point")
+                                
+                            # Controls
+                            with gr.Row():
+                                clear_btn = gr.Button("Clear Points")
+                                new_mask_btn = gr.Button("New Mask")
+                                
+                            gr.Markdown("### Tracking")
+                            track_btn = gr.Button("Run Tracking", variant="primary")
+                        
+                        # Middle Column: Image for point selection
+                        with gr.Column(scale=2):
+                            point_image = gr.Image(label="Select Points")
+                        
+                        # Right Column: Results preview
+                        with gr.Column(scale=2):
+                            result_video = gr.Video(label="Tracking Preview")
             
             # Step 3: Export Results (new tab)
             with gr.Tab("3. Export Results"):
@@ -595,53 +620,112 @@ def create_wizard_interface(checkpoint_dir, model_cfg):
             outputs=[frame_slider]
         )
         
-        init_sam_btn.click(
-            wizard.initialize_sam,
-            inputs=[frame_slider],
-            outputs=[point_image, status_msg]
-        )
-        
-        pos_btn.click(
-            lambda: wizard.set_positive(),
-            outputs=[status_msg]
-        )
-        
-        neg_btn.click(
-            lambda: wizard.set_negative(),
-            outputs=[status_msg]
-        )
-        
-        def get_select_coords(frame_idx, img, evt: gr.SelectData):
-            """Handle click events on the image"""
-            i = evt.index[1]  # y coordinate
-            j = evt.index[0]  # x coordinate
-            guru.debug(f"Click at coordinates: ({j}, {i})")
+        # Initialize SAM and update the interface state
+        def initialize_sam_and_update_ui(frame_idx):
+            image, message = wizard.initialize_sam(frame_idx)
+            success = "initialized" in message.lower() and image is not None
             
-            # Add point and return updated image
-            return wizard.add_point(frame_idx, i, j)
+            if success:
+                # Show the segmentation container and hide the overlay
+                segmentation_container.visible = True
+                overlay_container.visible = False
+                return (
+                    image,  # point_image
+                    message,  # status_msg
+                    gr.update(visible=False),  # overlay_container
+                    gr.update(visible=True)  # segmentation_container
+                )
+            else:
+                # Keep overlay visible, segmentation hidden
+                segmentation_container.visible = False
+                overlay_container.visible = True
+                return (
+                    None,  # point_image
+                    message or "SAM initialization failed. Please try again.",  # status_msg
+                    gr.update(visible=True),  # overlay_container
+                    gr.update(visible=False)  # segmentation_container
+                )
+        
+        init_sam_btn.click(
+            initialize_sam_and_update_ui,
+            inputs=[frame_slider],
+            outputs=[
+                point_image, 
+                status_msg, 
+                overlay_container, 
+                segmentation_container
+            ]
+        )
+        
+        # Check if SAM is initialized before handling clicks - REWRITE THIS SECTION
+        def add_point_from_click(frame_idx, img, evt: gr.SelectData):
+            # Only process clicks when segmentation container is visible
+            # (This avoids needing to check the sam_initialized state)
+            if segmentation_container.visible:
+                i = evt.index[1]  # y coordinate
+                j = evt.index[0]  # x coordinate
+                return wizard.add_point(frame_idx, i, j)
+            else:
+                return img  # Just return the input image if not initialized
         
         point_image.select(
-            get_select_coords,
+            add_point_from_click,
             inputs=[frame_slider, point_image],
             outputs=[point_image]
         )
         
+        # For other functions, we can use a simpler approach that doesn't depend on state checking
+        
+        def check_sam_initialized():
+            # Simple function to check if SAM is ready (we use visibility as a proxy for initialization)
+            return segmentation_container.visible
+        
+        # Track button handling
+        def run_tracker():
+            if not check_sam_initialized():
+                return None, "Please initialize SAM first"
+            return wizard.run_tracker()
+        
+        track_btn.click(
+            run_tracker,
+            outputs=[result_video, status_msg]
+        )
+        
+        # Button handlers that check visibility instead of state
+        pos_btn.click(
+            lambda: wizard.set_positive() if check_sam_initialized() else "Please initialize SAM first",
+            outputs=[status_msg]
+        )
+        
+        neg_btn.click(
+            lambda: wizard.set_negative() if check_sam_initialized() else "Please initialize SAM first",
+            outputs=[status_msg]
+        )
+        
         clear_btn.click(
-            lambda: (wizard.clear_points()[2], wizard.set_input_image(wizard.frame_index)[0]),
+            lambda: (wizard.clear_points()[2], wizard.set_input_image(wizard.frame_index)[0]) 
+                if check_sam_initialized() 
+                else ("Please initialize SAM first", None),
             outputs=[status_msg, point_image]
         )
         
         new_mask_btn.click(
-            wizard.add_new_mask,
+            lambda: wizard.add_new_mask() if check_sam_initialized() else (None, "Please initialize SAM first"),
             outputs=[point_image, status_msg]
         )
         
-        # Step 3: Tracking and Export
-        track_btn.click(
-            wizard.run_tracker,
-            outputs=[result_video, status_msg]
+        def update_frame(idx):
+            if not check_sam_initialized():
+                return None, "Please initialize SAM first"
+            return wizard.set_input_image(int(idx))
+        
+        frame_slider.change(
+            update_frame,
+            inputs=[frame_slider],
+            outputs=[point_image, status_msg]
         )
         
+        # Step 3: Export handling
         browse_export.click(
             browse_directory,
             outputs=[export_dir]
