@@ -300,36 +300,95 @@ class SAM2Wizard:
             guru.error(f"Error in run_tracker: {str(e)}")
             return None, f"Error running tracker: {str(e)}"
 
-    def save_masks(self, output_dir):
-        """Save masks to the specified directory"""
+    def save_masks(self, output_dir, export_options):
+        """Save masks to the specified directory with various export options"""
         if not output_dir or not self.index_masks_all:
             return "No masks to save or invalid directory"
             
         try:
+            # Get export options
+            export_color = export_options.get('color_mask', True)
+            export_index = export_options.get('index_mask', True)
+            export_raw = export_options.get('raw_mask', False)
+            export_no_bg = export_options.get('images_no_bg', False)
+            export_video = export_options.get('as_video', False)
+            
+            # Create main output directory
             os.makedirs(output_dir, exist_ok=True)
             
-            # Save both colorized masks and raw masks
-            for i, (color_mask, index_mask) in enumerate(zip(self.color_masks_all, self.index_masks_all)):
-                # Get base filename from original frame
-                base_name = os.path.splitext(os.path.basename(self.img_paths[i]))[0]
+            # Create subdirectories for different export types
+            if export_color:
+                os.makedirs(os.path.join(output_dir, "color_masks"), exist_ok=True)
+            if export_index:
+                os.makedirs(os.path.join(output_dir, "index_masks"), exist_ok=True)
+            if export_raw:
+                os.makedirs(os.path.join(output_dir, "raw_masks"), exist_ok=True)
+            if export_no_bg:
+                os.makedirs(os.path.join(output_dir, "no_background"), exist_ok=True)
                 
-                # Save color mask as PNG
-                color_path = os.path.join(output_dir, f"{base_name}_color.png")
-                cv2.imwrite(color_path, cv2.cvtColor(color_mask, cv2.COLOR_RGB2BGR))
-                
-                # Save index mask as PNG
-                idx_path = os.path.join(output_dir, f"{base_name}_index.png") 
-                cv2.imwrite(idx_path, index_mask)
-                
-                # Save raw mask data as NPY
-                np_path = os.path.join(output_dir, f"{base_name}_mask.npy")
-                np.save(np_path, index_mask)
+            export_count = 0
             
-            return f"Saved {len(self.index_masks_all)} masks to {output_dir}"
+            # Get original images for no-background export
+            if export_no_bg:
+                images = [cv2.cvtColor(cv2.imread(p), cv2.COLOR_BGR2RGB) for p in self.img_paths]
+                images_no_bg = remove_background(images, self.index_masks_all)
+                
+            # If exporting as video
+            if export_video:
+                import tempfile
+                from pathlib import Path
+                import imageio.v2 as iio
+                
+                temp_dir = Path(tempfile.gettempdir())
+                
+                # Export color mask video
+                if export_color and self.color_masks_all:
+                    out_path = os.path.join(output_dir, "color_masks", "color_masks.mp4")
+                    iio.mimwrite(out_path, self.color_masks_all, fps=10)
+                    export_count += 1
+                
+                # Export no background video
+                if export_no_bg and images_no_bg:
+                    out_path = os.path.join(output_dir, "no_background", "no_background.mp4")
+                    iio.mimwrite(out_path, images_no_bg, fps=10)
+                    export_count += 1
+            
+            # Export as individual files
+            else:
+                # Save each mask type as separate files
+                for i, (color_mask, index_mask) in enumerate(zip(self.color_masks_all, self.index_masks_all)):
+                    # Get base filename from original frame
+                    base_name = os.path.splitext(os.path.basename(self.img_paths[i]))[0]
+                    
+                    # Save color mask as PNG
+                    if export_color:
+                        color_path = os.path.join(output_dir, "color_masks", f"{base_name}.png")
+                        cv2.imwrite(color_path, cv2.cvtColor(color_mask, cv2.COLOR_RGB2BGR))
+                        export_count += 1
+                    
+                    # Save index mask as PNG
+                    if export_index:
+                        idx_path = os.path.join(output_dir, "index_masks", f"{base_name}.png")
+                        cv2.imwrite(idx_path, index_mask)
+                        export_count += 1
+                    
+                    # Save raw mask data as NPY
+                    if export_raw:
+                        np_path = os.path.join(output_dir, "raw_masks", f"{base_name}.npy")
+                        np.save(np_path, index_mask)
+                        export_count += 1
+                        
+                    # Save no-background image as PNG
+                    if export_no_bg:
+                        nobg_path = os.path.join(output_dir, "no_background", f"{base_name}.png")
+                        cv2.imwrite(nobg_path, cv2.cvtColor(images_no_bg[i], cv2.COLOR_RGB2BGR))
+                        export_count += 1
+            
+            return f"Exported {export_count} files to {output_dir}"
             
         except Exception as e:
+            guru.error(f"Error saving masks: {str(e)}")
             return f"Error saving masks: {str(e)}"
-
 
 def is_image(filepath):
     """Check if a file is an image based on its extension"""
@@ -345,6 +404,23 @@ def get_hls_palette(n_colors: int, lightness: float = 0.5, saturation: float = 0
     ]
     return (255 * np.asarray(palette)).astype("uint8")
 
+def remove_background(images, mask, bg_idx=0):
+    """Remove background from images using a mask"""
+    if not images or not mask:
+        return []
+    
+    images_without_background = []
+    for img, m in zip(images, mask):
+        if m is None:
+            images_without_background.append(img)
+            continue
+        
+        # Remove background
+        out_f = img.copy()
+        out_f[m == bg_idx] = 0
+        images_without_background.append(out_f)
+    
+    return images_without_background
 
 def colorize_masks(images, index_masks, fac: float = 0.5):
     """Colorize masks and blend with original images"""
@@ -502,20 +578,39 @@ def create_wizard_interface(checkpoint_dir, model_cfg):
                 
                 with gr.Row():
                     with gr.Column():
-                        gr.Markdown("Select a directory to save mask files:")
+                        # Export location
+                        gr.Markdown("#### Select output directory:")
                         export_dir = gr.Textbox(label="Export Directory")
                         browse_export = gr.Button("Browse Export Location")
+                        
+                        # Export options
+                        gr.Markdown("#### Export Options:")
+                        with gr.Row():
+                            with gr.Column():
+                                export_color = gr.Checkbox(label="Color Masks", value=True)
+                                export_index = gr.Checkbox(label="Index Masks", value=True)
+                                export_raw = gr.Checkbox(label="Raw Numpy Data", value=False)
+                            with gr.Column():
+                                export_no_bg = gr.Checkbox(label="RGB Frames without background", value=False)
+                                export_as_video = gr.Checkbox(label="Export as Video", value=False)
+                        
+                        # Submit button
                         export_btn = gr.Button("Export Masks", variant="primary")
                         
+                        # Info about export formats
                         gr.Markdown("""
-                        ### Export formats:
-                        - **Color mask**: PNG files with colored visualization of masks
-                        - **Index mask**: PNG files with integer labels for each object
-                        - **Raw mask data**: NPY files containing numpy arrays
+                        ### Export formats explanation:
+                        - **Color Masks**: PNG files with colored visualization of masks
+                        - **Index Masks**: PNG files with integer labels for each object
+                        - **Raw Numpy Data**: NPY files containing raw mask arrays
+                        - **No Background**: Original frames with background removed (set to black)
+                        - **Export as Video**: Save as video file instead of separate images
                         """)
                     
+                    # Preview column
                     with gr.Column():
                         export_preview = gr.Image(label="Mask Preview")
+                        export_result = gr.Textbox(label="Export Status")
         
         # Event handlers
         # Step 1: Input Processing
@@ -737,17 +832,35 @@ def create_wizard_interface(checkpoint_dir, model_cfg):
                 return wizard.color_masks_all[0], "Mask preview loaded. Ready to export."
             return None, "No masks available. Run tracking first before exporting."
         
-        # When switching to export tab, show preview if available and update status
+        # When switching to export tab, show preview if available
         tabs.change(
             show_mask_preview,
             inputs=None,
             outputs=[export_preview, status_msg]
         )
         
+        # Collect export options and call save_masks
+        def export_masks(export_dir, color_mask, index_mask, raw_mask, images_no_bg, as_video):
+            export_options = {
+                'color_mask': color_mask,
+                'index_mask': index_mask,
+                'raw_mask': raw_mask,
+                'images_no_bg': images_no_bg,
+                'as_video': as_video
+            }
+            return wizard.save_masks(export_dir, export_options)
+        
         export_btn.click(
-            wizard.save_masks,
-            inputs=[export_dir],
-            outputs=[status_msg]
+            export_masks,
+            inputs=[
+                export_dir, 
+                export_color, 
+                export_index, 
+                export_raw, 
+                export_no_bg,
+                export_as_video
+            ],
+            outputs=[export_result]
         )
         
     return interface
