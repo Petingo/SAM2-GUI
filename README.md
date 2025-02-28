@@ -31,7 +31,7 @@ pip install -r requirements.txt
 python sam2_gui.py \
     --checkpoint_dir ../sam2/checkpoints/sam2.1_hiera_large.pt \
     --model_cfg ../sam2/configs/sam2.1/sam2.1_hiera_l.yaml \
-    --port 8888
+    --port 8890
 ```
 
 2. Open your browser and goes to http://127.0.0.1:8890/
