@@ -3,7 +3,7 @@ A GUI for easy interaction with Meta's SAM2 video segmentation model
 
 ![](screenshots/demo.gif)
 
-## Usage
+## Preparation
 1. Setup the environment and install [SAM2](https://ai.meta.com/sam2/). If you already have it installed, skip this step.
 ```bash
 # create conda environment
@@ -25,7 +25,8 @@ git clone https://github.com/Petingo/SAM2-GUI.git && cd SAM2-GUI
 pip install -r requirements.txt
 ```
 
-3. Run `sam2_gui.py`. You can assign the model and checkpoint to use.
+## Usage
+1. Run `sam2_gui.py`. You can assign the model and checkpoint to use.
 ```
 python sam2_gui.py \
     --checkpoint_dir ../sam2/checkpoints/sam2.1_hiera_large.pt \
@@ -33,7 +34,7 @@ python sam2_gui.py \
     --port 8888
 ```
 
-4. Open your browser and goes to http://127.0.0.1:8890/
+2. Open your browser and goes to http://127.0.0.1:8890/
 
 ## Troubleshooting 
 The working directory is a bit messed up right now. If you encounter problems like checkpoint not found or model config not found, please arrange the directory structure as following (make sure that all files exist!) and run `sam2_gui.py` using the default setting:
