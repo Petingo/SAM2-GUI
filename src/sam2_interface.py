@@ -147,12 +147,12 @@ class SAM2Interface:
                     gr.Markdown("#### Export Options:")
                     with gr.Row():
                         with gr.Column():
-                            self.export_color = gr.Checkbox(label="Color Masks", value=True)
                             self.export_index = gr.Checkbox(label="Index Masks", value=True)
                             self.export_raw = gr.Checkbox(label="Raw Numpy Data", value=False)
                         with gr.Column():
-                            self.export_no_bg = gr.Checkbox(label="No Background", value=False)
-                            self.export_as_video = gr.Checkbox(label="Export as Video", value=False)
+                            self.export_color = gr.Checkbox(label="Color Masks", value=True)
+                            self.export_no_bg = gr.Checkbox(label="RGB Frame without Background", value=False)
+                            self.export_as_video = gr.Checkbox(label="Export as Video (only work with Color Masks & RGB Frame)", value=False)
                     
                     # Submit button
                     self.export_btn = gr.Button("Export Masks", variant="primary")
@@ -170,7 +170,6 @@ class SAM2Interface:
                 # Preview column
                 with gr.Column():
                     self.export_preview = gr.Image(label="Mask Preview")
-                    self.export_result = gr.Textbox(label="Export Status")
 
     def _connect_events(self):
         """Connect all event handlers to UI elements"""
@@ -271,7 +270,7 @@ class SAM2Interface:
             self._export_masks,
             inputs=[self.export_dir, self.export_color, self.export_index, 
                    self.export_raw, self.export_no_bg, self.export_as_video],
-            outputs=[self.export_result]
+            outputs=[self.status_msg]  # Use the global status message instead
         )
 
     # Event handler implementations
