@@ -2,6 +2,7 @@ import os
 import cv2
 import numpy as np
 import colorsys
+from tqdm import tqdm
 
 def is_image(filepath):
     """Check if a file is an image based on its extension"""
@@ -48,7 +49,7 @@ def colorize_masks(images, index_masks, fac: float = 0.5):
     color_masks = []
     out_frames = []
     
-    for img, mask in zip(images, index_masks):
+    for img, mask in tqdm(zip(images, index_masks), desc="Colorizing masks", total=len(images)):
         if mask is None:
             color_masks.append(np.zeros_like(img))
             out_frames.append(img)

@@ -348,9 +348,9 @@ class SAM2Interface:
         """Check if SAM is initialized by checking container visibility"""
         return self.segmentation_container.visible
     
-    def _initialize_sam(self, frame_idx):
+    def _initialize_sam(self, frame_idx, progress=gr.Progress(track_tqdm=True)):
         """Initialize SAM model and update UI"""
-        image, message = self.controller.initialize_sam(frame_idx)
+        image, message = self.controller.initialize_sam(frame_idx, progress=progress)
         success = "initialized" in message.lower() and image is not None
         
         if success:
@@ -396,11 +396,11 @@ class SAM2Interface:
         max_idx = len(self.controller.img_paths) - 1 if self.controller.img_paths else 0
         return min(int(idx) + 1, max_idx)
     
-    def _run_tracker(self):
+    def _run_tracker(self, progress=gr.Progress(track_tqdm=True)):
         """Run the video tracker"""
         if not self._check_sam_initialized():
             return None, "Please initialize SAM first"
-        return self.controller.run_tracker()
+        return self.controller.run_tracker(progress=progress)
     
     def _clear_points(self):
         """Clear all points"""

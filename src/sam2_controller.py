@@ -150,7 +150,7 @@ class SAM2Controller:
         except Exception as e:
             return f"Error extracting frames: {str(e)}"
 
-    def initialize_sam(self, frame_idx=0):
+    def initialize_sam(self, frame_idx=0, progress=None):
         """Initialize SAM for the current frame"""
         if not self.img_paths:
             return None, "No images loaded"
@@ -259,7 +259,7 @@ class SAM2Controller:
                 guru.error(f"Error in get_sam_mask: {str(e)}")
                 return {}
 
-    def run_tracker(self):
+    def run_tracker(self, progress=None):
         """Propagate masks through the video sequence"""
         if not hasattr(self, 'inference_state') or not self.img_paths:
             return None, "No frames or points selected"
@@ -290,7 +290,6 @@ class SAM2Controller:
             output_frames, self.color_masks_all = colorize_masks(images, self.index_masks_all)
             self.images_no_bg = []
             
-            # Save video to a temporary file
             import tempfile
             from pathlib import Path
             import imageio.v2 as iio
