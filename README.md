@@ -62,7 +62,6 @@ The working directory is a bit messed up right now. If you encounter problems li
 - This project is derived from [SAM2-GUI by YunxuanMao](https://github.com/YunxuanMao/SAM2-GUI).
 
 ## TODO:
-- Integrate terminal output
 - Change the preview button to radio
 - Improve UI in key point labeling
 - Improve UI in multi-mask labeling
