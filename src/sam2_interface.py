@@ -169,13 +169,13 @@ class SAM2Interface:
                 
                 # Preview column
                 with gr.Column():
-                    with gr.Row():
-                        with gr.Column():
-                            self.export_preview_color_mask_btn = gr.Button("Preview Color Mask")
-                        with gr.Column():
-                            self.export_preview_no_bg_btn = gr.Button("Preview No Background")
-                    with gr.Row():
-                        self.export_preview = gr.Image(label="Mask Preview")
+                    # Replace buttons with radio
+                    self.preview_type = gr.Radio(
+                        ["Color Mask", "No Background"], 
+                        label="Preview Type",
+                        value="Color Mask"
+                    )
+                    self.export_preview = gr.Image(label="Mask Preview")
 
     def _connect_events(self):
         """Connect all event handlers to UI elements"""
@@ -272,15 +272,10 @@ class SAM2Interface:
             outputs=[self.export_preview, self.status_msg]
         )
 
-        self.export_preview_color_mask_btn.click(
-            self._export_preview_color_mask,
-            inputs=None,
-            outputs=[self.export_preview, self.status_msg]
-        )
-
-        self.export_preview_no_bg_btn.click(
-            self._export_preview_no_bg,
-            inputs=None,
+        # Replace button clicks with radio change
+        self.preview_type.change(
+            self._update_preview_by_type,
+            inputs=[self.preview_type],
             outputs=[self.export_preview, self.status_msg]
         )
         
@@ -412,17 +407,17 @@ class SAM2Interface:
             return self.controller.color_masks_all[0], "Mask preview loaded. Ready to export."
         return None, "No masks available. Run tracking first before exporting."
     
-    def _export_preview_color_mask(self):
+    def _update_preview_by_type(self, preview_type):
+        """Update the preview based on selected type"""
         if not (self.controller.color_masks_all and len(self.controller.color_masks_all) > 0):
-            return None, "No masks available. Run tracking first before exporting."
+            return None, "No masks available. Run tracking first before previewing."
         
-        return self.controller.color_masks_all[0], "Color mask preview loaded."
-
-    def _export_preview_no_bg(self):
-        if not (self.controller.color_masks_all and len(self.controller.color_masks_all) > 0):
-            return None, "No masks available. Run tracking first before exporting."
+        if preview_type == "Color Mask":
+            return self.controller.color_masks_all[0], "Color mask preview loaded."
+        elif preview_type == "No Background":
+            return self.controller.get_images_no_bg()[0], "No background preview loaded."
         
-        return self.controller.get_images_no_bg()[0], "No background preview loaded."
+        return None, "Invalid preview type selected."
 
     def _export_masks(self, export_dir, color_mask, index_mask, raw_mask, images_no_bg, as_video):
         """Export masks with the selected options"""

@@ -62,6 +62,8 @@ The working directory is a bit messed up right now. If you encounter problems li
 - This project is derived from [SAM2-GUI by YunxuanMao](https://github.com/YunxuanMao/SAM2-GUI).
 
 ## TODO:
+- Preview no bg need tqdm
+- After re-initialize SAM, the preview should be clean
 - Change the preview button to radio
 - Improve UI in key point labeling
 - Improve UI in multi-mask labeling
