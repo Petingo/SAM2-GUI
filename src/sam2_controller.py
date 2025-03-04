@@ -297,14 +297,28 @@ class SAM2Controller:
             temp_dir = Path(tempfile.gettempdir())
             out_path = str(temp_dir / "tracked_video.mp4")
             
-            # Save frames as video
-            iio.mimwrite(out_path, output_frames, fps=10)
-            
+            # Save frames as video with tqdm progress bar
+            self._save_video_with_progress(out_path, output_frames, fps=10)
+                        
             return out_path, f"Tracking complete. Processed {len(output_frames)} frames."
-            
+
         except Exception as e:
             guru.error(f"Error in run_tracker: {str(e)}")
             return None, f"Error running tracker: {str(e)}"
+
+    def _save_video_with_progress(self, output_path, frames, fps=10):
+        """Save video with progress bar using imageio"""
+        import imageio.v2 as iio
+        
+        # Get writer
+        writer = iio.get_writer(output_path, fps=fps)
+        
+        # Write frames with progress bar
+        for frame in tqdm(frames, desc="Saving video", unit="frame"):
+            writer.append_data(frame)
+        
+        # Close writer
+        writer.close()
         
     def get_images_no_bg(self):
         """Get images with background removed"""
