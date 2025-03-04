@@ -288,6 +288,7 @@ class SAM2Controller:
             
             # Create colorized output
             output_frames, self.color_masks_all = colorize_masks(images, self.index_masks_all)
+            self.images_no_bg = []
             
             # Save video to a temporary file
             import tempfile
@@ -305,6 +306,27 @@ class SAM2Controller:
         except Exception as e:
             guru.error(f"Error in run_tracker: {str(e)}")
             return None, f"Error running tracker: {str(e)}"
+        
+    def get_images_no_bg(self):
+        """Get images with background removed"""
+        if not self.img_paths:
+            raise ValueError("No images available")
+
+        if not self.index_masks_all:
+            raise ValueError("No masks available")
+
+        # cache
+        if self.images_no_bg is not None and len(self.images_no_bg) == len(self.img_paths):
+            return self.images_no_bg
+
+        try:
+            images = [cv2.cvtColor(cv2.imread(p), cv2.COLOR_BGR2RGB) for p in self.img_paths]
+            self.images_no_bg = remove_background(images, self.index_masks_all)
+            return self.images_no_bg
+        
+        except Exception as e:
+            guru.error(f"Error getting no-background images: {str(e)}")
+            raise ValueError(f"Error getting no-background images: {str(e)}")
 
     def save_masks(self, output_dir, export_options):
         """Save masks to the specified directory with various export options"""
@@ -336,8 +358,7 @@ class SAM2Controller:
             
             # Get original images for no-background export
             if export_no_bg:
-                images = [cv2.cvtColor(cv2.imread(p), cv2.COLOR_BGR2RGB) for p in self.img_paths]
-                images_no_bg = remove_background(images, self.index_masks_all)
+                self.get_images_no_bg()
                 
             # If exporting as video
             if export_video:
@@ -354,9 +375,9 @@ class SAM2Controller:
                     export_count += 1
                 
                 # Export no background video
-                if export_no_bg and images_no_bg:
+                if export_no_bg and self.images_no_bg:
                     out_path = os.path.join(output_dir, "no_background", "no_background.mp4")
-                    iio.mimwrite(out_path, images_no_bg, fps=10)
+                    iio.mimwrite(out_path, self.images_no_bg, fps=10)
                     export_count += 1
             
             # Export as individual files
@@ -387,7 +408,7 @@ class SAM2Controller:
                     # Save no-background image as PNG
                     if export_no_bg:
                         nobg_path = os.path.join(output_dir, "no_background", f"{base_name}.png")
-                        cv2.imwrite(nobg_path, cv2.cvtColor(images_no_bg[i], cv2.COLOR_RGB2BGR))
+                        cv2.imwrite(nobg_path, cv2.cvtColor(self.images_no_bg[i], cv2.COLOR_RGB2BGR))
                         export_count += 1
             
             return f"Exported {export_count} files to {output_dir}"

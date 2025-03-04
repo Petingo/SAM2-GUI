@@ -148,11 +148,11 @@ class SAM2Interface:
                     with gr.Row():
                         with gr.Column():
                             self.export_index = gr.Checkbox(label="Index Masks", value=True)
-                            self.export_raw = gr.Checkbox(label="Raw Numpy Data", value=False)
+                            self.export_raw = gr.Checkbox(label="Raw Numpy Data", value=True)
                         with gr.Column():
-                            self.export_color = gr.Checkbox(label="Color Masks", value=True)
+                            self.export_color = gr.Checkbox(label="Color Masks", value=False)
                             self.export_no_bg = gr.Checkbox(label="RGB Frame without Background", value=False)
-                            self.export_as_video = gr.Checkbox(label="Export as Video (only work with Color Masks & RGB Frame)", value=False)
+                            self.export_as_video = gr.Checkbox(label="Export as Video", value=False)
                     
                     # Submit button
                     self.export_btn = gr.Button("Export Masks", variant="primary")
@@ -169,7 +169,13 @@ class SAM2Interface:
                 
                 # Preview column
                 with gr.Column():
-                    self.export_preview = gr.Image(label="Mask Preview")
+                    with gr.Row():
+                        with gr.Column():
+                            self.export_preview_color_mask_btn = gr.Button("Preview Color Mask")
+                        with gr.Column():
+                            self.export_preview_no_bg_btn = gr.Button("Preview No Background")
+                    with gr.Row():
+                        self.export_preview = gr.Image(label="Mask Preview")
 
     def _connect_events(self):
         """Connect all event handlers to UI elements"""
@@ -262,6 +268,18 @@ class SAM2Interface:
         
         self.tabs.change(
             self._show_mask_preview,
+            inputs=None,
+            outputs=[self.export_preview, self.status_msg]
+        )
+
+        self.export_preview_color_mask_btn.click(
+            self._export_preview_color_mask,
+            inputs=None,
+            outputs=[self.export_preview, self.status_msg]
+        )
+
+        self.export_preview_no_bg_btn.click(
+            self._export_preview_no_bg,
             inputs=None,
             outputs=[self.export_preview, self.status_msg]
         )
@@ -394,6 +412,18 @@ class SAM2Interface:
             return self.controller.color_masks_all[0], "Mask preview loaded. Ready to export."
         return None, "No masks available. Run tracking first before exporting."
     
+    def _export_preview_color_mask(self):
+        if not (self.controller.color_masks_all and len(self.controller.color_masks_all) > 0):
+            return None, "No masks available. Run tracking first before exporting."
+        
+        return self.controller.color_masks_all[0], "Color mask preview loaded."
+
+    def _export_preview_no_bg(self):
+        if not (self.controller.color_masks_all and len(self.controller.color_masks_all) > 0):
+            return None, "No masks available. Run tracking first before exporting."
+        
+        return self.controller.get_images_no_bg()[0], "No background preview loaded."
+
     def _export_masks(self, export_dir, color_mask, index_mask, raw_mask, images_no_bg, as_video):
         """Export masks with the selected options"""
         export_options = {

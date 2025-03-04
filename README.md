@@ -1,5 +1,5 @@
 # SAM2 GUI
-A GUI for easy interaction with Meta's SAM2 video segmentation model
+A GUI for easy interaction with Meta's SAM2 video segmentation model.
 
 ![](screenshots/demo.gif)
 
