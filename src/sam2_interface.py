@@ -1,8 +1,10 @@
 import os
+import sys
 import gradio as gr
-
+    
 from .utils import browse_directory
 from .sam2_controller import SAM2Controller
+from .terminal_logger import TerminalLogger
 
 class SAM2Interface:
     """Class that manages the SAM2 Gradio interface"""
@@ -12,13 +14,20 @@ class SAM2Interface:
         self.server_port = server_port
         self.controller = SAM2Controller(checkpoint_dir, model_cfg)
         
+        # Replacing sys.stdout with the custom logger
+        terminal_logger = TerminalLogger("/tmp/log.txt")
+        sys.stdout = terminal_logger
+
         # Interface components
         with gr.Blocks(title="SAM2 Video Segmentation Tool") as self.interface:
             gr.Markdown("# SAM2 Video Segmentation Tool")
             
             # Status message - global status for all tabs
             self.status_msg = gr.Textbox(label="Status", value="Welcome! Start by selecting a video or image directory.")
-            
+            self.terminal_output = gr.Textbox(label="Terminal Output", value="", type="text", lines=3)
+            self.terminal_update_timer = gr.Timer(1)
+            self.terminal_update_timer.tick(terminal_logger.read_logs, None, self.terminal_output)
+
             with gr.Tabs() as self.tabs:
                 self._build_input_tab()
                 self._build_segment_tab()

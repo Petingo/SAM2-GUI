@@ -60,3 +60,9 @@ The working directory is a bit messed up right now. If you encounter problems li
 
 ## Acknoledge
 - This project is modified from [SAM2-GUI by YunxuanMao](https://github.com/YunxuanMao/SAM2-GUI), but fixes some bugs and improved the UI.
+
+## TODO:
+- Integrate terminal output
+- Change the preview button to radio
+- Improve UI in key point labeling
+- Improve UI in multi-mask labeling
